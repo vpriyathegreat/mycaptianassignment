@@ -91,3 +91,51 @@ public interface KYCApplicationRepository extends JpaRepository<KYCApplication, 
     List<KYCApplication> findByCustomerEmailContainingIgnoreCase(String email);
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p>admin works!</p>
+<h2>KYC Applications</h2>
+
+<table border="1">
+  <tr>
+    <th>ID</th>
+    <th>Name</th>
+    <th>Email</th>
+    <th>Status</th>
+    <th>Document</th>
+    <th>Actions</th>
+  </tr>
+  <tr *ngFor="let app of applications">
+    <td>{{ app.id }}</td>
+    <td>{{ app.customer.name }}</td>
+    <td>{{ app.customer.email }}</td>
+    <td>{{ app.status }}</td>
+    <td><a [href]="app.documentPath" target="_blank">View</a></td>
+    <td *ngIf="app.status === 'PENDING'">
+      <button (click)="updateStatus(app.id, 'approve')">Approve</button>
+      <button (click)="updateStatus(app.id, 'reject')">Reject</button>
+    </td>
+  </tr>
+</table>
