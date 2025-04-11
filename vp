@@ -226,3 +226,147 @@ class AdminControllerTest {
 
 
 
+
+
+
+
+
+package org.example.service;
+
+import org.example.entity.KYCApplicationmodel;
+import org.example.entity.KYCStatus;
+import org.example.repository.KYCRepository;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.util.*;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class KYCServiceTest {
+
+    @Mock
+    private KYCRepository kycRepo;
+
+    @InjectMocks
+    private KYCService kycService;
+
+    public KYCServiceTest() {
+        MockitoAnnotations.openMocks(this);
+    }
+
+    @Test
+    void testGetAllApplications() {
+        List<KYCApplicationmodel> list = List.of(new KYCApplicationmodel(), new KYCApplicationmodel());
+        when(kycRepo.findAll()).thenReturn(list);
+
+        List<KYCApplicationmodel> result = kycService.getAllApplications();
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void testGetApplicationById() {
+        KYCApplicationmodel kyc = new KYCApplicationmodel();
+        kyc.setId(1L);
+
+        when(kycRepo.findById(1L)).thenReturn(Optional.of(kyc));
+
+        Optional<KYCApplicationmodel> result = kycService.getApplicationById(1L);
+        assertTrue(result.isPresent());
+        assertEquals(1L, result.get().getId());
+    }
+
+    @Test
+    void testUpdateStatusSuccess() {
+        KYCApplicationmodel kyc = new KYCApplicationmodel();
+        kyc.setId(1L);
+
+        when(kycRepo.findById(1L)).thenReturn(Optional.of(kyc));
+        String response = kycService.updateStatus(1L, KYCStatus.APPROVED);
+
+        assertEquals("KYC APPROVED", response);
+        verify(kycRepo, times(1)).save(kyc);
+    }
+
+    @Test
+    void testUpdateStatusNotFound() {
+        when(kycRepo.findById(1L)).thenReturn(Optional.empty());
+        String response = kycService.updateStatus(1L, KYCStatus.REJECTED);
+
+        assertEquals("KYC Not Found", response);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+package org.example.controller;
+
+import org.example.entity.KYCApplicationmodel;
+import org.example.entity.KYCStatus;
+import org.example.service.KYCService;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
+
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+@WebMvcTest(AdminController.class)
+public class AdminControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private KYCService kycService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Test
+    void testGetAllApplications() throws Exception {
+        KYCApplicationmodel kyc1 = new KYCApplicationmodel();
+        KYCApplicationmodel kyc2 = new KYCApplicationmodel();
+        when(kycService.getAllApplications()).thenReturn(List.of(kyc1, kyc2));
+
+        mockMvc.perform(get("/api/admin/kyc"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void testUpdateStatus() throws Exception {
+        when(kycService.updateStatus(1L, KYCStatus.APPROVED)).thenReturn("KYC APPROVED");
+
+        mockMvc.perform(put("/api/admin/kyc/1/APPROVED"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("KYC APPROVED"));
+    }
+}
+
+
+
+
+
+
+
+
+
