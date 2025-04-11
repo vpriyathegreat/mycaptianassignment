@@ -54,3 +54,56 @@ import { routes } from './app/app.routes';
 bootstrapApplication(RoleSelectorComponent, {
   providers: [provideHttpClient(), provideRouter(routes)],
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import { Component, OnInit } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+
+@Component({
+  selector: 'app-admin',
+  templateUrl: './admin.component.html',
+  styleUrls: ['./admin.component.css']
+})
+export class AdminComponent implements OnInit {
+
+  applications: any[] = [];
+
+  constructor(private http: HttpClient) {}
+
+  ngOnInit(): void {
+    this.fetchApplications();
+  }
+
+  fetchApplications(): void {
+    this.http.get<any>('http://localhost:8000/api/applications/') // change the URL if needed
+      .subscribe(
+        (response) => {
+          console.log('Fetched applications:', response);
+          this.applications = response.data;
+        },
+        (error) => {
+          console.error('Error fetching applications:', error);
+        }
+      );
+  }
+}
