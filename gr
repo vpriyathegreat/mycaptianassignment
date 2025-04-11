@@ -1,37 +1,107 @@
-<h2>KYC Applications</h2>
-<pre>{{ applications | json }}</pre> <!-- just for debug -->
+import { Component } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { FormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
 
-<table border="1">
-  <tr>
-    <th>ID</th>
-    <th>Status</th>
-    <th>Document</th>
-    <th>Submitted At</th>
-    <th>Actions</th>
-  </tr>
-  <tr *ngFor="let app of applications">
-    <td>{{ app.id }}</td>
-    <td>{{ app.status }}</td>
-    <td>
-      <a [href]="getDocumentUrl(app.documentPath)" target="_blank">View</a>
-    </td>
-    <td>{{ app.submittedAt | date:'short' }}</td>
-    <td *ngIf="app.status === 'PENDING'">
-      <button (click)="updateStatus(app.id, 'approve')">Approve</button>
-      <button (click)="updateStatus(app.id, 'reject')">Reject</button>
-    </td>
-  </tr>
-</table>
+@Component({
+  selector: 'app-customer',
+  standalone: true,
+  imports: [
+    FormsModule,
+    CommonModule
+  ],
+  templateUrl: './customer.component.html'
+})
+export class CustomerComponent {
+  customer = {
+    name: '',
+    email: '',
+    address: '',
+    dob: ''
+  };
 
+  document: File | null = null;
+  message = '';
 
+  kycId: number | null = null;
+  kycStatusMessage = '';
+  kycStatusDetails: any = null;
 
-getDocumentUrl(path: string): string {
-  if (!path) return '#';
-  const fileName = path.split('\\').pop();
-  return `http://localhost:8000/media/kyc_uploads/${fileName}`;
+  constructor(private http: HttpClient) {}
+
+  onFileChange(event: any) {
+    this.document = event.target.files[0];
+  }
+
+  submitKYC() {
+    const formData = new FormData();
+    formData.append('name', this.customer.name);
+    formData.append('email', this.customer.email);
+    formData.append('address', this.customer.address);
+    formData.append('dob', this.customer.dob);
+    if (this.document) {
+      formData.append('document', this.document);
+    }
+
+    this.http.post('http://localhost:8080/api/customer/kyc', formData)
+      .subscribe({
+        next: res => this.message = 'KYC submitted successfully.',
+        error: err => this.message = 'Error submitting KYC.'
+      });
+  }
+
+  getKYCStatus() {
+    if (this.kycId == null) {
+      this.kycStatusMessage = 'Please enter a KYC ID.';
+      return;
+    }
+
+    this.http.get<any>(`http://localhost:8080/api/customer/kyc/${this.kycId}`)
+      .subscribe({
+        next: res => {
+          this.kycStatusMessage = res.message;
+          this.kycStatusDetails = res.data;
+        },
+        error: err => {
+          this.kycStatusMessage = err.error?.message || 'Error fetching KYC status.';
+          this.kycStatusDetails = null;
+        }
+      });
+  }
 }
 
 
 
 
-<td><a [href]="getDocumentUrl(app.documentPath)" target="_blank">View</a></td>
+
+
+
+
+
+<p>customer works!</p>
+
+<h2>Customer KYC Form</h2>
+<form (ngSubmit)="submitKYC()">
+  <input type="text" [(ngModel)]="customer.name" name="name" placeholder="Name" required><br>
+  <input type="email" [(ngModel)]="customer.email" name="email" placeholder="Email" required><br>
+  <input type="text" [(ngModel)]="customer.address" name="address" placeholder="Address" required><br>
+  <input type="date" [(ngModel)]="customer.dob" name="dob" required><br>
+  <input type="file" (change)="onFileChange($event)" required><br>
+  <button type="submit">Submit KYC</button>
+</form>
+<p>{{ message }}</p>
+
+<hr>
+
+<h2>Check KYC Status</h2>
+<input type="number" [(ngModel)]="kycId" name="kycId" placeholder="Enter KYC ID" required>
+<button (click)="getKYCStatus()">Check Status</button>
+
+<p>{{ kycStatusMessage }}</p>
+
+<div *ngIf="kycStatusDetails">
+  <p><strong>Name:</strong> {{ kycStatusDetails.name }}</p>
+  <p><strong>Email:</strong> {{ kycStatusDetails.email }}</p>
+  <p><strong>Address:</strong> {{ kycStatusDetails.address }}</p>
+  <p><strong>DOB:</strong> {{ kycStatusDetails.dob }}</p>
+</div>
