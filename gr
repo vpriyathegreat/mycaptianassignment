@@ -22,3 +22,16 @@
     </td>
   </tr>
 </table>
+
+
+
+getDocumentUrl(path: string): string {
+  if (!path) return '#';
+  const fileName = path.split('\\').pop();
+  return `http://localhost:8000/media/kyc_uploads/${fileName}`;
+}
+
+
+
+
+<td><a [href]="getDocumentUrl(app.documentPath)" target="_blank">View</a></td>
