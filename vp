@@ -1,0 +1,228 @@
+package org.example.service;
+
+import org.example.entity.*;
+import org.example.repository.CustomerRepository;
+import org.example.repository.KYCRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.*;
+import org.springframework.mock.web.MockMultipartFile;
+
+import java.io.IOException;
+import java.time.LocalDate;
+import java.util.*;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class CustomerServiceTest {
+
+    @InjectMocks
+    private CustomerService customerService;
+
+    @Mock
+    private CustomerRepository customerRepo;
+
+    @Mock
+    private KYCRepository kycRepo;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+    }
+
+    @Test
+    void testSubmitKYC_NewCustomer_Success() throws IOException {
+        MockMultipartFile file = new MockMultipartFile("document", "doc.pdf", "application/pdf", "content".getBytes());
+
+        when(customerRepo.findByEmail(any())).thenReturn(Optional.empty());
+
+        String result = customerService.submitKYC("Nishal", "nishal@mail.com", "Chennai", "2000-01-01", file);
+        assertEquals("KYC Submitted Successfully", result);
+
+        verify(customerRepo, times(1)).save(any(Customer.class));
+    }
+
+    @Test
+    void testSubmitKYC_WhenStatusIsRejected_ShouldAllow() throws IOException {
+        Customer customer = new Customer();
+        KYCApplicationmodel rejectedApp = new KYCApplicationmodel();
+        rejectedApp.setStatus(KYCStatus.REJECTED);
+        customer.setKycApplication(new ArrayList<>(List.of(rejectedApp)));
+
+        when(customerRepo.findByEmail(any())).thenReturn(Optional.of(customer));
+
+        MockMultipartFile file = new MockMultipartFile("document", "doc.pdf", "application/pdf", "content".getBytes());
+        String result = customerService.submitKYC("Nishal", "nishal@mail.com", "Chennai", "2000-01-01", file);
+        assertEquals("KYC Submitted Successfully", result);
+    }
+
+    @Test
+    void testSubmitKYC_WhenStatusIsPending_ShouldNotAllow() throws IOException {
+        Customer customer = new Customer();
+        KYCApplicationmodel pendingApp = new KYCApplicationmodel();
+        pendingApp.setStatus(KYCStatus.PENDING);
+        customer.setKycApplication(new ArrayList<>(List.of(pendingApp)));
+
+        when(customerRepo.findByEmail(any())).thenReturn(Optional.of(customer));
+
+        MockMultipartFile file = new MockMultipartFile("document", "doc.pdf", "application/pdf", "content".getBytes());
+        String result = customerService.submitKYC("Nishal", "nishal@mail.com", "Chennai", "2000-01-01", file);
+        assertEquals("KYC Application cannot be modified unless it is rejected.", result);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+package org.example.controller;
+
+import org.example.service.CustomerService;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@WebMvcTest(CustomerController.class)
+class CustomerControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private CustomerService customerService;
+
+    @Test
+    void testSubmitKYCEndpoint_Success() throws Exception {
+        MockMultipartFile file = new MockMultipartFile("document", "doc.pdf", "application/pdf", "dummy data".getBytes());
+
+        when(customerService.submitKYC(anyString(), anyString(), anyString(), anyString(), any())).thenReturn("KYC Submitted Successfully");
+
+        mockMvc.perform(multipart("/submitKYC")
+                .file(file)
+                .param("name", "Nishal")
+                .param("email", "nishal@mail.com")
+                .param("address", "Chennai")
+                .param("dob", "2000-01-01"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("KYC Submitted Successfully"));
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+@Service
+public class KYCService {
+
+    @Autowired
+    private KYCRepository kycRepo;
+
+    public String approveKYC(Long kycId) {
+        Optional<KYCApplicationmodel> optionalKYC = kycRepo.findById(kycId);
+        if (optionalKYC.isPresent()) {
+            KYCApplicationmodel kyc = optionalKYC.get();
+            if (kyc.getStatus() == KYCStatus.PENDING) {
+                kyc.setStatus(KYCStatus.APPROVED);
+                kycRepo.save(kyc);
+                return "KYC Application Approved";
+            }
+            return "KYC Application is not in a pending state";
+        }
+        return "KYC Application not found";
+    }
+
+    public String rejectKYC(Long kycId) {
+        Optional<KYCApplicationmodel> optionalKYC = kycRepo.findById(kycId);
+        if (optionalKYC.isPresent()) {
+            KYCApplicationmodel kyc = optionalKYC.get();
+            if (kyc.getStatus() == KYCStatus.PENDING) {
+                kyc.setStatus(KYCStatus.REJECTED);
+                kycRepo.save(kyc);
+                return "KYC Application Rejected";
+            }
+            return "KYC Application is not in a pending state";
+        }
+        return "KYC Application not found";
+    }
+}
+
+
+
+
+
+
+package org.example.controller;
+
+import org.example.service.KYCService;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@WebMvcTest(AdminController.class)
+class AdminControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private KYCService kycService;
+
+    @Test
+    void testApproveEndpoint_Success() throws Exception {
+        when(kycService.approveKYC(1L)).thenReturn("KYC Application Approved");
+
+        mockMvc.perform(post("/admin/approve/1"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("KYC Application Approved"));
+    }
+
+    @Test
+    void testRejectEndpoint_Success() throws Exception {
+        when(kycService.rejectKYC(2L)).thenReturn("KYC Application Rejected");
+
+        mockMvc.perform(post("/admin/reject/2"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("KYC Application Rejected"));
+    }
+}
+
+
+
+
+
+
+
+
+
+
