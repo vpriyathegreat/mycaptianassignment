@@ -1,141 +1,56 @@
-@GetMapping("/kyc/search")
-    public ResponseEntity<ApiResponse<?>> searchByEmail(@RequestParam String email) {
-        return ResponseEntity.ok(new ApiResponse<>("Filtered applications", kycService.searchByEmail(email)));
-    }
+ng generate component role-selector --standalone
 
 
 
-<p>admin works!</p>
-<h2>KYC Applications</h2>
-
-<input type="text" [(ngModel)]="searchEmail" placeholder="Search by Email">
-<button (click)="loadApplications()">Search</button>
-
-<table border="1">
-  <tr>
-    <th>ID</th>
-    <th>Name</th>
-    <th>Email</th>
-    <th>Status</th>
-    <th>Document</th>
-    <th>Actions</th>
-  </tr>
-  <tr *ngFor="let app of applications">
-    <td>{{ app.id }}</td>
-    <td>{{ app.customer.name }}</td>
-    <td>{{ app.customer.email }}</td>
-    <td>{{ app.status }}</td>
-    <td><a [href]="app.documentPath" target="_blank">View</a></td>
-    <td *ngIf="app.status === 'PENDING'">
-      <button (click)="updateStatus(app.id, 'approve')">Approve</button>
-      <button (click)="updateStatus(app.id, 'reject')">Reject</button>
-    </td>
-  </tr>
-</table>
-
-
-
-
-
-import { Component, OnInit } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Component } from '@angular/core';
+import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 
 @Component({
-  selector: 'app-admin',
+  selector: 'app-role-selector',
   standalone: true,
-  templateUrl: './admin.component.html',
-  imports: [CommonModule, FormsModule]
+  imports: [CommonModule],
+  templateUrl: './role-selector.component.html',
 })
-export class AdminComponent implements OnInit {
-  applications: any[] = [];
-  searchEmail: string = '';
+export class RoleSelectorComponent {
+  constructor(private router: Router) {}
 
-  constructor(private http: HttpClient) {}
-
-  ngOnInit(): void {
-    this.loadApplications();
-  }
-
-  loadApplications() {
-    const url = this.searchEmail
-      ? `http://localhost:8080/api/admin/kyc/search?email=${this.searchEmail}`
-      : `http://localhost:8080/api/admin/kyc`;
-
-    this.http.get<any>(url)
-      .subscribe(res => this.applications = res.data);
-  }
-
-  updateStatus(id: number, status: 'approve' | 'reject') {
-    this.http.put(`http://localhost:8080/api/admin/kyc/${id}/${status}`, {})
-      .subscribe(() => this.loadApplications());
+  navigateTo(role: string) {
+    this.router.navigate([`/${role}`]);
   }
 }
 
 
 
-
-
-
-kyc service
-
-public List<KYCApplication> searchByEmail(String email) {
-    return kycApplicationRepository.findByCustomerEmailContainingIgnoreCase(email);
-}
-
-
-
-@Repository
-public interface KYCApplicationRepository extends JpaRepository<KYCApplication, Long> {
-    List<KYCApplication> findByCustomerEmailContainingIgnoreCase(String email);
-}
+<h2>Select Role</h2>
+<button (click)="navigateTo('customer')">Customer</button>
+<button (click)="navigateTo('admin')">Admin</button>
 
 
 
 
 
+import { Routes } from '@angular/router';
+import { RoleSelectorComponent } from './role-selector/role-selector.component';
+import { AdminComponent } from './admin/admin.component';
+import { CustomerComponent } from './customer/customer.component';
+
+export const routes: Routes = [
+  { path: '', component: RoleSelectorComponent },
+  { path: 'admin', component: AdminComponent },
+  { path: 'customer', component: CustomerComponent }
+];
 
 
 
 
 
+import { bootstrapApplication } from '@angular/platform-browser';
+import { provideHttpClient } from '@angular/common/http';
+import { provideRouter } from '@angular/router';
+import { RoleSelectorComponent } from './app/role-selector/role-selector.component';
+import { routes } from './app/app.routes';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<p>admin works!</p>
-<h2>KYC Applications</h2>
-
-<table border="1">
-  <tr>
-    <th>ID</th>
-    <th>Name</th>
-    <th>Email</th>
-    <th>Status</th>
-    <th>Document</th>
-    <th>Actions</th>
-  </tr>
-  <tr *ngFor="let app of applications">
-    <td>{{ app.id }}</td>
-    <td>{{ app.customer.name }}</td>
-    <td>{{ app.customer.email }}</td>
-    <td>{{ app.status }}</td>
-    <td><a [href]="app.documentPath" target="_blank">View</a></td>
-    <td *ngIf="app.status === 'PENDING'">
-      <button (click)="updateStatus(app.id, 'approve')">Approve</button>
-      <button (click)="updateStatus(app.id, 'reject')">Reject</button>
-    </td>
-  </tr>
-</table>
+bootstrapApplication(RoleSelectorComponent, {
+  providers: [provideHttpClient(), provideRouter(routes)],
+});
