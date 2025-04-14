@@ -1,58 +1,71 @@
-ng generate component role-selector --standalone
+npm install --save-dev jasmine-core karma karma-chrome-launcher karma-jasmine karma-jasmine-html-reporter @angular-devkit/build-angular
 
 
-
-import { Component } from '@angular/core';
-import { Router } from '@angular/router';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { AdminComponent } from './admin.component';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { CommonModule } from '@angular/common';
 
-@Component({
-  selector: 'app-role-selector',
-  standalone: true,
-  imports: [CommonModule],
-  templateUrl: './role-selector.component.html',
-})
-export class RoleSelectorComponent {
-  constructor(private router: Router) {}
+describe('AdminComponent', () => {
+  let component: AdminComponent;
+  let fixture: ComponentFixture<AdminComponent>;
+  let httpMock: HttpTestingController;
 
-  navigateTo(role: string) {
-    this.router.navigate([`/${role}`]);
-  }
-}
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule, CommonModule],
+      declarations: [AdminComponent]
+    }).compileComponents();
 
+    fixture = TestBed.createComponent(AdminComponent);
+    component = fixture.componentInstance;
+    httpMock = TestBed.inject(HttpTestingController);
 
+    fixture.detectChanges(); // ngOnInit gets called here
+  });
 
-<h2>Select Role</h2>
-<button (click)="navigateTo('customer')">Customer</button>
-<button (click)="navigateTo('admin')">Admin</button>
+  afterEach(() => {
+    httpMock.verify();
+  });
 
+  it('should create the component', () => {
+    expect(component).toBeTruthy();
+  });
 
+  it('should fetch applications on init', () => {
+    const mockResponse = {
+      data: [
+        { id: 1, status: 'PENDING', documentPath: 'abc.pdf', submittedAt: new Date() }
+      ]
+    };
 
+    const req = httpMock.expectOne('http://localhost:8080/api/admin/kyc');
+    expect(req.request.method).toBe('GET');
+    req.flush(mockResponse);
 
+    expect(component.applications.length).toBe(1);
+    expect(component.applications[0].id).toBe(1);
+  });
 
-import { Routes } from '@angular/router';
-import { RoleSelectorComponent } from './role-selector/role-selector.component';
-import { AdminComponent } from './admin/admin.component';
-import { CustomerComponent } from './customer/customer.component';
+  it('should update status and reload data', () => {
+    component.updateStatus(1, 'approve');
 
-export const routes: Routes = [
-  { path: '', component: RoleSelectorComponent },
-  { path: 'admin', component: AdminComponent },
-  { path: 'customer', component: CustomerComponent }
-];
+    const req = httpMock.expectOne('http://localhost:8080/api/admin/kyc/1/approve');
+    expect(req.request.method).toBe('PUT');
+    req.flush({});
 
+    const reloadReq = httpMock.expectOne('http://localhost:8080/api/admin/kyc');
+    expect(reloadReq.request.method).toBe('GET');
+    reloadReq.flush({ data: [] });
 
+    expect(component.applications.length).toBe(0);
+  });
 
-
-
-import { bootstrapApplication } from '@angular/platform-browser';
-import { provideHttpClient } from '@angular/common/http';
-import { provideRouter } from '@angular/router';
-import { RoleSelectorComponent } from './app/role-selector/role-selector.component';
-import { routes } from './app/app.routes';
-
-bootstrapApplication(RoleSelectorComponent, {
-  providers: [provideHttpClient(), provideRouter(routes)],
+  it('should generate document URL properly', () => {
+    const path = 'some\\path\\doc.pdf';
+    const url = component.getDocumentUrl(path);
+    expect(url).toBe('http://localhost:8000/media/kyc_uploads/doc.pdf');
+  });
 });
 
 
@@ -61,49 +74,73 @@ bootstrapApplication(RoleSelectorComponent, {
 
 
 
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { CustomerComponent } from './customer.component';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { FormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
+
+describe('CustomerComponent', () => {
+  let component: CustomerComponent;
+  let fixture: ComponentFixture<CustomerComponent>;
+  let httpMock: HttpTestingController;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule, FormsModule, CommonModule],
+      declarations: [CustomerComponent]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(CustomerComponent);
+    component = fixture.componentInstance;
+    httpMock = TestBed.inject(HttpTestingController);
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it('should create the component', () => {
+    expect(component).toBeTruthy();
+  });
+
+  it('should submit KYC successfully', () => {
+    component.customer = {
+      name: 'John',
+      email: 'john@example.com',
+      address: 'Street',
+      dob: '1990-01-01'
+    };
+
+    component.submitKYC();
+
+    const req = httpMock.expectOne('http://localhost:8080/api/customer/kyc');
+    expect(req.request.method).toBe('POST');
+    req.flush({ message: 'success' });
+
+    expect(component.message).toBe('KYC submitted successfully.');
+  });
+
+  it('should fetch KYC status', () => {
+    component.kycId = 1;
+    component.getKYCStatus();
+
+    const req = httpMock.expectOne('http://localhost:8080/api/customer/kyc/1');
+    expect(req.request.method).toBe('GET');
+    req.flush({
+      message: 'Found',
+      data: { name: 'John', email: 'john@example.com', kycApplication: [{ status: 'APPROVED' }] }
+    });
+
+    expect(component.kycStatusMessage).toBe('Found');
+    expect(component.kycStatusDetails.name).toBe('John');
+  });
+});
 
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-import { Component, OnInit } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-
-@Component({
-  selector: 'app-admin',
-  templateUrl: './admin.component.html',
-  styleUrls: ['./admin.component.css']
-})
-export class AdminComponent implements OnInit {
-
-  applications: any[] = [];
-
-  constructor(private http: HttpClient) {}
-
-  ngOnInit(): void {
-    this.fetchApplications();
-  }
-
-  fetchApplications(): void {
-    this.http.get<any>('http://localhost:8000/api/applications/') // change the URL if needed
-      .subscribe(
-        (response) => {
-          console.log('Fetched applications:', response);
-          this.applications = response.data;
-        },
-        (error) => {
-          console.error('Error fetching applications:', error);
-        }
-      );
-  }
-}
+ng generate component admin --standalone
