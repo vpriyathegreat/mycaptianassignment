@@ -1,28 +1,20 @@
 ngOnInit(): void {
   this.uploadService.gridRefreshEvent.subscribe(() => {
+    console.log('[Grid Refresh] Event received');
+
     if (this.gridApi) {
-      // ✅ If grid already has data → refresh
+      console.log('[Grid Refresh] Clearing server-side store cache...');
       this.gridApi.refreshServerSideStore({ purge: true });
 
-      // ✅ If grid has 0 rows → reset datasource & fetch
-      if (this.gridApi.getDisplayedRowCount() === 0) {
-        this.gridApi.setServerSideDatasource(this.getDocumentsDataSource());
-      }
+      console.log('[Grid Refresh] Resetting server-side datasource...');
+      this.gridApi.setServerSideDatasource(this.getDocumentsDataSource());
+
+      console.log('[Grid Refresh] Done ✅');
+    } else {
+      console.warn('[Grid Refresh] gridApi not ready yet ❌');
     }
   });
-}
-
-
-
-
-ngOnInit(): void {
-  this.uploadService.gridRefreshEvent.subscribe(() => {
-    if (this.gridApi) {
-      const datasource = this.getDocumentsDataSource();
-
-      if (this.gridApi.getDisplayedRowCount() === 0) {
-        // 🔄 Force full reload if no rows are present
-        this.gridApi.setServerSideDatasource(datasource);
+}        this.gridApi.setServerSideDatasource(datasource);
       } else {
         // 🔁 Otherwise just refresh cache (faster, keeps scroll state)
         this.gridApi.refreshServerSideStore({ purge: true });
