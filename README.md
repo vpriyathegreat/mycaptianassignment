@@ -11,3 +11,22 @@ ngOnInit(): void {
     }
   });
 }
+
+
+
+
+ngOnInit(): void {
+  this.uploadService.gridRefreshEvent.subscribe(() => {
+    if (this.gridApi) {
+      const datasource = this.getDocumentsDataSource();
+
+      if (this.gridApi.getDisplayedRowCount() === 0) {
+        // 🔄 Force full reload if no rows are present
+        this.gridApi.setServerSideDatasource(datasource);
+      } else {
+        // 🔁 Otherwise just refresh cache (faster, keeps scroll state)
+        this.gridApi.refreshServerSideStore({ purge: true });
+      }
+    }
+  });
+}
